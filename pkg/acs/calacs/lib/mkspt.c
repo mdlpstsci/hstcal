@@ -13,14 +13,15 @@
 
   Description:
   ------------
-    New file will be based on primary header of first input file
+    New file will be based on primary header of first found input file
     given and will not have any extensions.
 
   Date          Author      Description
   ----          ------      -----------
   11-10-1999    W.J. Hack   Initial version
                             based on InitRejTrl and n_mkSPT from CALNICB
-
+  11-18-2017    M.D. De La Pena  Clarified message when input *_spt.fits files not found.  
+                            Generalized creation of output association SPT file.
 */
 
 int mkNewSpt (char *in_list, char *mtype, char *output) {
@@ -77,8 +78,11 @@ int mkNewSpt (char *in_list, char *mtype, char *output) {
         return (status);
     }
 
+//MDD - move.  What if there are no input files so CALACS would not make an output file anyway?
     /* See if an output SPT file already exists */
     if (FileExists (out_spt)) {
+        sprintf (MsgText, "Output SPT filename for %s", in_name);
+        trlerror (MsgText);
         return (status);
     }
 
@@ -107,15 +111,17 @@ int mkNewSpt (char *in_list, char *mtype, char *output) {
             return (status);
         }
 	    /* Check for existence of source/input SPT file */
+        /* If there are no input SPT files, then no combined/ASN SPT file will be created */
 	    if ((fp = fopen (in_spt, "rb")) == NULL) {
-	        sprintf (MsgText, "Can't find input file \"%s\"", in_spt);
+	        sprintf (MsgText, "Cannot find file \"%s\" - processing can proceed.  Output association SPT is comprised of any found individual SPT files.\n", in_spt);
 	        trlwarn  (MsgText);
             status = ACS_OK;        /* don't abort */
 	        continue;				/* try the rest of the images in list */
 	    } else
 	        (void)fcloseWithStatus(&fp);
 
-        /* Create Primary header of new output SPT file from first input
+
+        /* Create Primary header of new output SPT file from first found input
             image...
         */
 	    /* Read the primary header of the input SPT file */
@@ -163,8 +169,8 @@ int mkNewSpt (char *in_list, char *mtype, char *output) {
 	        if (PutKeyInt (&header, "NEXTEND", nimgs, ""))
 	            return (status = 1);
 
-            sprintf(MsgText,"Updated output SPT file to reflect %d extensions...\n",nimgs);
-            trlmessage(MsgText);
+	        sprintf(MsgText,"Updated output SPT file to reflect %d extensions...\n",numSPT);
+	        trlmessage(MsgText);
 
 	        /* Write the new SPT file */
             /* Open the image; this also writes the header */
