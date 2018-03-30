@@ -471,6 +471,8 @@ int WF3cte (char *input, char *output, CCD_Switch *cte_sw,
         return (status=ERROR_RETURN);
     }
 
+// MDD Hack to write out initial rsz data to the output file
+
     /***CONVERT THE READNOISE SMOOTHED IMAGE TO RSC IMAGE
       THIS IS WHERE THE CTE GETS CALCULATED         ***/
     if (rsz2rsc(&wf3, &rsz, &rsc, &cte_pars))
@@ -487,6 +489,8 @@ int WF3cte (char *input, char *output, CCD_Switch *cte_sw,
     /*BACK TO NORMAL FORMATTING*/
     /*Copies rzc data to cd->sci.data and ab->sci.data */
     undoRAZ(&cd,&ab,&rzc);
+    //undoRAZ(&cd,&ab,&rsz);
+// MDD Hack to write out initial rsz data to the output file
 
     /* COPY BACK THE SCIENCE SUBARRAYS AND
        SAVE THE NEW RAW FILE WITH UPDATED SCIENCE
