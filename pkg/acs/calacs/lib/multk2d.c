@@ -25,16 +25,17 @@ float k          i: multiply a by this constant
     int dimx = a->sci.data.nx;
     int dimy = a->sci.data.ny;
     
-	for (int j = 0;  j < dimy;  j++) {
-	    for (int i = 0;  i < dimx;  i++) {
+    {unsigned int i, j;
+    for (j = 0;  j < dimy;  j++) {
+        for (i = 0;  i < dimx;  i++) {
 
             /* science array */
-    		Pix (a->sci.data, i, j) = k * Pix (a->sci.data, i, j);
+            Pix (a->sci.data, i, j) = k * Pix (a->sci.data, i, j);
 
-	        /* error array */
-    		Pix (a->err.data, i, j) = k * Pix (a->err.data, i, j);
+            /* error array */
+            Pix (a->err.data, i, j) = k * Pix (a->err.data, i, j);
         }
-    }
+    }}
 
 	return (status);
 }
@@ -45,14 +46,15 @@ float k          i: multiply a by this constant
 void AvgSciVal (SingleGroup *y, short sdqflags, double *mean, double *weight) {
 
     double sum  = 0.0;
-    int numgood = 0;		/* number of good pixels */
-    short flagval;          /* data quality flag value */
+    int numgood = 0;     /* number of good pixels */
+    short flagval;       /* data quality flag value */
 
     int dimx = y->sci.data.nx;
     int dimy = y->sci.data.ny;
 
-    for (int j = 0; j < dimy; j++) {
-        for (int i = 0;  i < dimx;  i++) {
+    {unsigned int i, j;
+    for (j = 0; j < dimy; j++) {
+        for (i = 0;  i < dimx;  i++) {
             flagval = DQPix (y->dq.data, i, j);
 
             /* no serious flag bit set */
@@ -61,7 +63,7 @@ void AvgSciVal (SingleGroup *y, short sdqflags, double *mean, double *weight) {
                numgood++;
             }
         }
-    }
+    }}
 
     *mean   = 0.0;
     *weight = 0.0;
@@ -69,7 +71,4 @@ void AvgSciVal (SingleGroup *y, short sdqflags, double *mean, double *weight) {
         *mean   = sum / (double) numgood;
         *weight = (double) numgood / (double)(dimx * dimy);
     } 
-// TEMP for debug
-sprintf(MsgText,"avgscival. mean: %f weight: %f", *mean, *weight);
-trlmessage(MsgText);
 }

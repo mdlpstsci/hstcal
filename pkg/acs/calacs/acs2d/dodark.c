@@ -8,6 +8,7 @@
 # include <stdlib.h>		/* calloc */
 # include <math.h>		/* fabs */
 
+#include "hstcal_memory.h"
 #include "hstcal.h"
 # include "hstio.h"
 # include "acs.h"
@@ -69,11 +70,13 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
 
   const float darkscaling = 3.0;  /* Extra idle time */
   
-  SingleGroup y, z;	/* y and z are scratch space */
   int extver = 1;	/* get this imset from dark image */
-  int rx, ry;		/* for binning dark image down to size of x */
-  int x0, y0;		/* offsets of science image */
-  int same_size;	/* true if no binning of dark image required */
+
+  /* Assumption is the science and dark images are the same size and bin factor */
+  int rx = 1, ry = 1;  /* for binning dark image down to size of x */
+  int x0 = 0, y0 = 0;  /* offsets of science image */
+  int same_size = 1;   /* true if no binning of dark image required */
+
   int scicols;      /* number of columns in science image */
   int scirows;      /* number of rows in science image */
   double mean;      /* mean value for the image */
@@ -123,8 +126,15 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
      trlmessage(MsgText);
   }
   
-  /* Initialze and get the dark image data */
+  /* Create a pointer register for bookkeeping purposes and to ease cleanup */
+  PtrRegister ptrReg;
+  initPtrRegister(&ptrReg);
+
+  /* Initialize and get the dark image data */
+  SingleGroup y; /* scratch space */
   initSingleGroup (&y);
+
+  addPtr(&ptrReg, &y, &freeSingleGroup);
 
   if (acs2d->pctecorr == PERFORM) {
       getSingleGroup (acs2d->darkcte.name, extver, &y);
@@ -133,7 +143,7 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
   }
 
   if (hstio_err()) {
-     freeSingleGroup (&y);
+     freeOnExit(&ptrReg);
      return (status = OPEN_FAILED);
   }
 
@@ -142,7 +152,7 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
      use by bin2d.
   */
   if (FindBin (x, &y, &same_size, &rx, &ry, &x0, &y0)) {
-     freeSingleGroup (&y);
+     freeOnExit(&ptrReg);
      return (status);
   }
   
@@ -156,11 +166,14 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
   }
   
   /* Trim the dark image (y->z) down to the actual size of the science image (x). */
+  SingleGroup z; /* scratch space */
   initSingleGroup (&z);
   allocSingleGroup (&z, scicols, scirows, True);
+
+  addPtr(&ptrReg, &z, &freeSingleGroup);
+
   if (hstio_err()) {
-     freeSingleGroup (&y);
-     freeSingleGroup (&z);
+     freeOnExit(&ptrReg);
      return (status = ALLOCATION_PROBLEM);
   }
     
@@ -171,15 +184,13 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
   update = NO;
   if (trim2d (&y, x0, y0, rx, ry, update, &z)) {
      trlerror ("(darkcorr) size mismatch.");
-     freeSingleGroup (&y);
-     freeSingleGroup (&z);
+     freeOnExit(&ptrReg);
      return (status);
   }
     
   /* Multipy the dark image (SCI and ERR extensions) by the darktime constant. */
   if (multk2d(&z, darktime)) {
-     freeSingleGroup (&y);
-     freeSingleGroup (&z);
+     freeOnExit(&ptrReg);
      return (status);
   }
     
@@ -189,30 +200,27 @@ int doDark (ACSInfo *acs2d, SingleGroup *x, float *meandark) {
   mean   = 0.0;
   weight = 0.0;
   AvgSciVal (&z, acs2d->sdqflags, &mean, &weight);
-/*
-for (int kk=1000; kk < 1040; kk++){
-		ddata = Pix (z.sci.data, kk, 1000);
-sprintf(MsgText,"kk: %d after avg Z: %f", kk, ddata);
-trlmessage(MsgText);
-}
-*/
 
   /* Subtract the dark data from the science data */
   if (sub2d (x, &z)) {
-     freeSingleGroup (&y);
-     freeSingleGroup (&z);
+     freeOnExit(&ptrReg);
      return (status);
   }
 
   /* Compute the weighted mean for the image */	
   /* *** MDD FIX - Not sure this is really needed anymore */
+  /*
   *meandark = 0.0;
   if ( (weight > 0.0) && (scirows > 0) )
      *meandark = (float) (mean / weight); 
+  */
+  /* This is to force a compatibility match to the previous version of the
+     code.  
+  */
+  *meandark = mean;
 	
   /* Free up the scratch data */
-  freeSingleGroup (&z);
-  freeSingleGroup (&y);
+  freeOnExit(&ptrReg);
 
   return (status);
 }

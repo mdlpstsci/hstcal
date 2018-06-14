@@ -33,8 +33,10 @@ SingleGroup *b   i: second input data
     /* science, error, and DQ data */
     int dimx = a->sci.data.nx;
     int dimy = a->sci.data.ny;
-    for (int j = 0; j < dimy; j++) {
-        for (int i = 0;  i < dimx;  i++) {
+
+    {unsigned int i, j;
+    for (j = 0; j < dimy; j++) {
+        for (i = 0;  i < dimx;  i++) {
             /* science array */
             Pix(a->sci.data, i, j) -= Pix(b->sci.data, i, j);
 
@@ -49,7 +51,7 @@ SingleGroup *b   i: second input data
             dqab = dqa | dqb;
             DQSetPix (a->dq.data, i, j, dqab);
        }
-    }
+    }}
 
     return (status);
 }
