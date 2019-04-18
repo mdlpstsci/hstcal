@@ -1090,6 +1090,9 @@ static void fitsamps (const short nsamp, float *sci, float *err, short *dq,
  ** this routine. Optimal weighting (SNR-dependent) may now be used in
  ** the fit. Calculation of uncertainty now includes contributions
  ** from Poisson noise (source and dark) and read noise.
+ **
+ ** M.De La Pena April 2019 Reworked the "wt" computation as requested
+ ** WFC3 team.
  */
 
 static void linfit (short weight_type, float *x, float *y, float *sig, 
@@ -1104,6 +1107,7 @@ static void linfit (short weight_type, float *x, float *y, float *sig,
     float  snr,power,fit_uncert,dx,dy,ddg,denom;
     float  terma,termb,termc,errterms;
     float  rdns, invrdns2;
+    float  x_midpoint, half_interval, delta;
 
     /* WFC3 SMOV mean CDS read noise is ~21 e/pixel */
     rdns = 21.0 / gain; /* DN/pixel/CDS */
@@ -1148,7 +1152,8 @@ static void linfit (short weight_type, float *x, float *y, float *sig,
             snr=0.0;
         }
         /* Then use that SNR to select the exponent for the weighting. 
-         * These numbers come from a paper by Fixsen (ref. TBA)*/
+         * These numbers come from Regan (2007) JWST-STScI-001212,
+         * and Dahlen et al. (2008) ISR-NICMOS 2008-002 */
         if (snr > 100) {
             power =10.0;
         }else{
@@ -1172,14 +1177,30 @@ static void linfit (short weight_type, float *x, float *y, float *sig,
         }
     }
 
+    # include <stdbool.h>
+    static bool pflag = true;
+    if (pflag) {
+        sprintf (MsgText, "********** CRIDCALC(linfit). Experimental change to the wt computation. **********");
+        trlmessage (MsgText);
+        pflag = false;
+    }
+
     /* Accumulate sums */
     for (k = 0; k < ndata; k++) {
         if (sig[k] != 0) {
 
-            /*wt = 1.0 / (sig[k]*sig[k]);*/
-
             /* Compute dimensionless weight (ranges from 0 to 1) */
-            wt=fabs(pow(fabs(k-((ndata-1)/2.))/((ndata-1)/2.),power)); 
+            //wt=fabs(pow(fabs(k-((ndata-1)/2.))/((ndata-1)/2.),power)); 
+
+            /* EXPERIMENTAL CHANGE as requested by WFC3 Team 
+             * x_midpoint: midpoint of the interval in time
+             * half_interval: amount of time in half_interval
+             */
+            x_midpoint    = (x[ndata-1] + x[0]) / 2.;
+            half_interval = (x[ndata-1] - x[0]) / 2.;
+            delta = fabs(x[k] - x_midpoint) / half_interval;
+            wt = pow(delta, power); 
+
             /* Renormalize dimensionless weight by inverse readnoise squared */
             wt*=invrdns2;
 
